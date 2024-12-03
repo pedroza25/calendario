@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UÑAS DIVINAS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            background: url('uñas.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .header {
+            background-color: rgba(255, 99, 177, 0.8);
+            color: white;
+            width: 100%;
+            text-align: center;
+            padding: 10px;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 800px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            margin: 20px;
+        }
+
+        .calendar .month {
+            grid-column: span 7;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .calendar .day {
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            background-color: #f4f4f4;
+        }
+
+        .calendar .day:hover {
+            background-color: rgba(255, 99, 177, 0.8);
+            color: white;
+        }
+
+        .seccion {
+            margin: 20px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            background-color: rgba(255, 99, 177, 0.8);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: rgba(255, 99, 177, 1);
+        }
+
+        .horarios-disponibles li {
+            cursor: pointer;
+            padding: 5px;
+            background-color: #f4f4f4;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        .horarios-disponibles li:hover {
+            background-color: rgba(255, 99, 177, 0.8);
+            color: white;
+        }
+
+        .appointment-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            background-color: #f4f4f4;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        .appointment-item button {
+            margin-left: 5px;
+            background-color: red;
+        }
+
+        .appointment-item button:hover {
+            background-color: darkred;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="header">
+    UÑAS DIVINAS
+</div>
+
+<!-- Calendario interactivo -->
+<div class="calendar" id="calendar-container"></div>
+
+<!-- Sección de Inicio de Sesión -->
+<div class="seccion" id="login-section">
+    <h2>Iniciar Sesión</h2>
+    <form id="login-form">
+        <input type="text" id="username" placeholder="Usuario" required minlength="3">
+        <input type="password" id="password" placeholder="Contraseña" required minlength="4">
+        <button type="submit">Iniciar Sesión</button>
+    </form>
+    <p id="login-message" style="color: red;"></p>
+</div>
+
+<!-- Sección de Gestión de Citas -->
+<div class="seccion" id="appointments-section" style="display: none;">
+    <h2>Crear Cita</h2>
+    <form id="appointment-form">
+        <input type="date" id="appointment-date" required>
+        <input type="time" id="appointment-time" required>
+        <input type="text" id="client-name" placeholder="Nombre del Cliente" required>
+        <input type="text" id="service" placeholder="Servicio" required>
+        <button type="submit">Agregar Cita</button>
+    </form>
+
+    <h3>Citas Agregadas:</h3>
+    <ul class="lista-citas" id="appointment-list"></ul>
+
+    <h3>Horas Disponibles:</h3>
+    <ul class="horarios-disponibles" id="available-times"></ul>
+
+    <button id="logout-button">Cerrar Sesión</button>
+</div>
+
+<script>
+    // Variables globales
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+
+    const appointmentList = document.getElementById("appointment-list");
+    const availableTimes = document.getElementById("available-times");
+    const calendarContainer = document.getElementById("calendar-container");
+    const loginSection = document.getElementById("login-section");
+    const appointmentsSection = document.getElementById("appointments-section");
+    const loginForm = document.getElementById("login-form");
+    const logoutButton = document.getElementById("logout-button");
+    const appointmentForm = document.getElementById("appointment-form");
+
+    // Datos de inicio de sesión simulados
+    const validUsername = "admin";
+    const validPassword = "1234";
+
+    // Array para almacenar citas
+    const appointments = [];
+
+    // Horas disponibles de 7:00 a 19:00
+    const workHours = Array.from({ length: 13 }, (_, i) => `${7 + i}:00`);
+
+    // Generar calendario
+    function renderCalendar(year, month) {
+        calendarContainer.innerHTML = "";
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const lastDate = new Date(year, month + 1, 0).getDate();
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+        const monthTitle = document.createElement("div");
+        monthTitle.classList.add("month");
+        monthTitle.textContent = `${monthNames[month]} ${year}`;
+        calendarContainer.appendChild(monthTitle);
+
+        const daysOfWeek = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+        daysOfWeek.forEach((day) => {
+            const dayElement = document.createElement("div");
+            dayElement.textContent = day;
+            calendarContainer.appendChild(dayElement);
+        });
+
+        for (let i = 0; i < firstDay; i++) {
+            const emptyCell = document.createElement("div");
+            calendarContainer.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= lastDate; day++) {
+            const dayElement = document.createElement("div");
+            dayElement.classList.add("day");
+            dayElement.textContent = day;
+
+            dayElement.addEventListener("click", () => {
+                // Mostrar las horas disponibles para el día seleccionado
+                availableTimes.innerHTML = "";
+                const selectedDate = new Date(year, month, day);
+                const formattedDate = selectedDate.toISOString().split("T")[0]; // Formato YYYY-MM-DD
+
+                // Filtrar las horas disponibles
+                const bookedHours = appointments
+                    .filter(appointment => appointment.date === formattedDate)
+                    .map(appointment => appointment.time);
+
+                workHours.forEach((hour) => {
+                    const timeSlot = document.createElement("li");
+                    timeSlot.textContent = `${hour} - ${bookedHours.includes(hour) ? "Ocupado" : "Disponible"}`;
+                    timeSlot.style.backgroundColor = bookedHours.includes(hour) ? "#ffcccc" : "#f4f4f4"; // Cambiar color si está ocupado
+                    timeSlot.addEventListener("click", () => {
+                        if (!bookedHours.includes(hour)) {
+                            document.getElementById("appointment-time").value = hour;
+                        }
+                    });
+                    availableTimes.appendChild(timeSlot);
+                });
+
+                document.getElementById("appointment-date").value = formattedDate;
+            });
+
+            calendarContainer.appendChild(dayElement);
+        }
+    }
+
+    // Manejo del inicio de sesión
+    loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        if (username === validUsername && password === validPassword) {
+            loginSection.style.display = "none";
+            appointmentsSection.style.display = "block";
+        } else {
+            document.getElementById("login-message").textContent = "Usuario o contraseña incorrectos.";
+        }
+    });
+
+    // Cerrar sesión
+    logoutButton.addEventListener("click", () => {
+        appointmentsSection.style.display = "none";
+        loginSection.style.display = "block";
+        document.getElementById("login-message").textContent = "";
+    });
+
+    // Manejo del formulario de citas
+    appointmentForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const date = document.getElementById("appointment-date").value;
+        const time = document.getElementById("appointment-time").value;
+        const clientName = document.getElementById("client-name").value;
+        const service = document.getElementById("service").value;
+
+        // Agregar cita
+        appointments.push({ date, time, clientName, service });
+
+        // Mostrar cita en la lista
+        const listItem = document.createElement("li");
+        listItem.classList.add("appointment-item");
+        listItem.innerHTML = `${date} - ${time} - ${clientName} - ${service}
+        <button class="edit-btn">Editar</button>
+        <button class="delete-btn">Eliminar</button>`;
+        
+        // Función para eliminar cita
+        listItem.querySelector(".delete-btn").addEventListener("click", () => {
+            const index = appointments.indexOf(appointments.find(appointment => 
+                appointment.date === date && appointment.time === time && appointment.clientName === clientName
+            ));
+            if (index > -1) {
+                appointments.splice(index, 1);
+                listItem.remove();
+            }
+        });
+
+        // Función para editar cita
+        listItem.querySelector(".edit-btn").addEventListener("click", () => {
+            document.getElementById("appointment-date").value = date;
+            document.getElementById("appointment-time").value = time;
+            document.getElementById("client-name").value = clientName;
+            document.getElementById("service").value = service;
+        });
+
+        appointmentList.appendChild(listItem);
+
+        // Limpiar formulario
+        appointmentForm.reset();
+    });
+
+    // Renderizar el calendario al cargar
+    renderCalendar(currentYear, currentMonth);
+</script>
+
+</body>
+</html>
